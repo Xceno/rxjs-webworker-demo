@@ -9,8 +9,8 @@ export const log = (msg: string, ...args: any[]) => console.debug(`[Worker] ${ms
 export const error = (msg: string, ...args: any[]) => console.error(`[Worker] ${msg}`, ...args);
 
 export const createMessageHandler = <T>(type: WorkerCommandType, messagePool: Subject<WorkerMessage<T>> | BehaviorSubject<WorkerMessage<T>>) =>
-  messagePool.filter(msg => checkMsgType(msg, type)) as Observable<WorkerMessage<T>>;
+    messagePool.filter(msg => checkMsgType(msg, type)) as Observable<WorkerMessage<T>>;
 
 export const sendToMainThread = <T>(msg: WorkerMessage<T>) => {
-  postMessage(msg.encodeForTransport());
+    postMessage(msg.encodeForTransport());
 };

@@ -10,40 +10,38 @@ import { createMessageHandler, error, log, sendToMainThread } from "../worker-ut
 
 /** Returns a memoized fibonnaci function */
 const cachedFibonacci = (() => {
-  const cache: number[] = [];
+    const cache: number[] = [];
 
-  const fib = (num: number, disableCache: boolean = false) => {
-    // Avoid infinite loops on undefined or null.
-    if (!num) {
-      return 0;
-    }
+    const fib = (num: number, disableCache: boolean = false) => {
+        // Avoid infinite loops on undefined or null.
+        if (!num) {
+            return 0;
+        }
 
-    if (!disableCache && cache[num]) {
-      return cache[num];
-    }
+        if (!disableCache && cache[num]) {
+            return cache[num];
+        }
 
-    if (num <= 1) {
-      return 1;
-    }
+        if (num <= 1) {
+            return 1;
+        }
 
-    // tslint:disable-next-line:no-magic-numbers
-    cache[num] = fib(num - 1, disableCache) + fib(num - 2, disableCache);
-    return cache[num];
-  };
+        // tslint:disable-next-line:no-magic-numbers
+        cache[num] = fib(num - 1, disableCache) + fib(num - 2, disableCache);
+        return cache[num];
+    };
 
-  return fib;
+    return fib;
 })();
 
 export const fibonacciHandler = (messagePool: Subject<WorkerMessage<any>>) =>
-  createMessageHandler<FibonacciTask>("CalcFibonacci", messagePool)
-    // tslint:disable-next-line:no-magic-numbers
-    .debounceTime(200)
-    .map(msg => msg.data)
-    .subscribe(
-      ({ value, disableCache }) => {
-        const result = cachedFibonacci(value, disableCache);
-        sendToMainThread(new WorkerMessage<number>("FibonnaciResult", result));
-      },
-      error,
-      () => log("fibonnaciHandler => done")
-    );
+    createMessageHandler<FibonacciTask>("CalcFibonacci", messagePool)
+        // tslint:disable-next-line:no-magic-numbers
+        .debounceTime(200)
+        .map(msg => msg.data)
+        .subscribe(({ value, disableCache }) => {
+            const result = cachedFibonacci(value, disableCache);
+            sendToMainThread(new WorkerMessage<number>("FibonnaciResult", result));
+        },
+        error,
+        () => log("fibonnaciHandler => done"));
