@@ -1,18 +1,16 @@
-// tslint:disable-next-line:no-implicit-dependencies
-import * as MyWorker from "worker-loader!./worker";
-import { checkMsgType, WorkerMessage, WorkerMessageType } from "../worker/com-models";
+/* eslint import/no-webpack-loader-syntax: off */
 
-import "rxjs/add/observable/empty";
-import "rxjs/add/observable/from";
-import "rxjs/add/observable/fromPromise";
-import "rxjs/add/operator/catch";
-import "rxjs/add/operator/filter";
-import "rxjs/add/operator/map";
-import "rxjs/add/operator/mergeMap";
-import "rxjs/add/operator/switchMap";
-import { BehaviorSubject } from "rxjs/BehaviorSubject";
-import { Observable } from "rxjs/Observable";
-import { Subject } from "rxjs/Subject";
+// tslint:disable-next-line:no-implicit-dependencies
+import { BehaviorSubject, Observable, Subject } from "rxjs";
+import { filter } from "rxjs/operators";
+// tslint:disable-next-line:no-implicit-dependencies
+import * as MyWorker from "worker-loader!./worker"; //eslint:disable-line:import/no-webpack-loader-syntax
+import {
+    checkMsgType,
+    fromJson,
+    WorkerMessage,
+    WorkerMessageType
+} from "../worker/com-models";
 
 export class WorkerService {
     private worker: Worker;
@@ -21,24 +19,35 @@ export class WorkerService {
 
     public constructor() {
         this.worker = new (MyWorker as any)();
-        this.messagesToWorker$ = new BehaviorSubject<WorkerMessage<any>>(null as any);
+        this.messagesToWorker$ = new BehaviorSubject<WorkerMessage<any>>(
+            null as any
+        );
 
         const workerNotification$ = new Subject<WorkerMessage<any>>();
         this.notification$ = workerNotification$.asObservable();
 
         const startMessagePipeline = () => {
             console.debug("[WorkerService] Starting msg pipeline!");
-            this.messagesToWorker$.filter(msg => msg != null).subscribe(
-                msg => {
+            this.messagesToWorker$.pipe(filter(msg => msg != null)).subscribe({
+                next: msg => {
                     this.worker.postMessage(msg.encodeForTransport());
                 },
-                err => console.error("[WorkerService] Couldn't post message to worker.", err)
-            );
+                error: err =>
+                    console.error(
+                        "[WorkerService] Couldn't post message to worker.",
+                        err
+                    )
+            });
         };
 
         this.worker.onmessage = encodedMsg => {
-            const workerMessage = WorkerMessage.fromJson<any>(encodedMsg ? encodedMsg.data : null);
-            console.debug("[WorkerService] Got message from worker", workerMessage);
+            const workerMessage = fromJson<any>(
+                encodedMsg ? encodedMsg.data : null
+            );
+            console.debug(
+                "[WorkerService] Got message from worker",
+                workerMessage
+            );
 
             if (workerMessage.type === "Ready") {
                 startMessagePipeline();
@@ -49,7 +58,7 @@ export class WorkerService {
     }
 
     public createMessageHandler = <T extends {}>(type: WorkerMessageType) =>
-        this.notification$.filter(msg => checkMsgType(msg, type)) as Observable<WorkerMessage<T>>;
+        this.notification$.pipe(filter(checkMsgType<T>(type)));
 
     public sendToWorker = (msg: WorkerMessage<any>) => {
         this.messagesToWorker$.next(msg);

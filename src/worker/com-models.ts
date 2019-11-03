@@ -1,3 +1,4 @@
+import propEq from "ramda/es/propEq";
 import { JSONcamelCaseReviver } from "../tools";
 
 /** Commands a worker can receive and should execute. */
@@ -6,67 +7,91 @@ export type WorkerCommandType = "CalcFibonacci" | "empty";
 /** A message that a client receives from a worker. */
 export type WorkerMessageType = "FibonnaciResult" | "Ready" | "empty" | "Error";
 
-export class WorkerMessage<T> {
-    public readonly isRawMessage: boolean;
+export interface RawMessage<TPayload> {
+    type: WorkerCommandType | WorkerMessageType;
+    data: TPayload;
+}
 
+export class WorkerError {
+    public constructor(
+        public readonly errorMsg: string,
+        public readonly originalCommand: WorkerCommandType,
+        public readonly error?: Error | object | string | null
+    ) {}
+}
+
+// tslint:disable-next-line:max-classes-per-file
+export class WorkerMessage<T> {
     /**
      * Set isRawMessage to true, to prevent the message from being stringified.
      * This is useful for data like Files, which will be properly serialized for you by the native worker pipeline
      * and don't need any further serialization.
      */
-    public constructor(public type: WorkerCommandType | WorkerMessageType, public data: T, isRawMessage: boolean = false) {
-        this.isRawMessage = isRawMessage;
-    }
-
-    private static empty = () => new WorkerMessage<any[]>("empty", []);
-
-    public static error = (errorMsg: string, originalCommand: WorkerCommandType, error: Error | object | string | null = null) =>
-        new WorkerMessage<WorkerError>("Error", new WorkerError(errorMsg, originalCommand, error));
-
-    public static fromJson = <T>(json: string | null | undefined) => {
-        // log.debug("Trying to parse JSON into workerMessage", json);
-
-        if (!!json) {
-            try {
-                const cmd = JSON.parse(json, JSONcamelCaseReviver) as WorkerMessage<T>;
-                if (cmd && cmd.type) {
-                    return new WorkerMessage<T>(cmd.type, cmd.data);
-                }
-            } catch (err) {
-                console.error("Couldn't parse workerMessage", err);
-            }
-        }
-        return WorkerMessage.empty();
-    };
-
-    public static fromRawMessage = <T>({ type, data }: { type: WorkerCommandType | WorkerMessageType; data: T }) => {
-        try {
-            return new WorkerMessage(type, data, true);
-        } catch (err) {
-            console.error("Couldn't create workerMessage from raw data", err);
-        }
-
-        return WorkerMessage.empty();
-    };
+    public constructor(
+        public readonly type: WorkerCommandType | WorkerMessageType,
+        public readonly data: T,
+        public readonly isRawMessage: boolean = false
+    ) {}
 
     public encodeForTransport = () => {
         if (this.isRawMessage) {
-            return { type: this.type, data: this.data, isRawMessage: this.isRawMessage };
-        } else {
-            return JSON.stringify(this);
+            return {
+                type: this.type,
+                data: this.data,
+                isRawMessage: this.isRawMessage
+            };
         }
+
+        return JSON.stringify(this);
     };
 }
 
-export const checkMsgType = (msg: WorkerMessage<any> | any, type: WorkerCommandType | WorkerMessageType) => {
-    const result = msg && msg.type ? (msg as WorkerMessage<any>).type === type : false;
-    return result;
+const emptyMessage = () => new WorkerMessage<any[]>("empty", []);
+
+export const errorMessage = (
+    errorMsg: string,
+    originalCommand: WorkerCommandType,
+    error: Error | object | string | null = null
+) =>
+    new WorkerMessage<WorkerError>(
+        "Error",
+        new WorkerError(errorMsg, originalCommand, error)
+    );
+
+export const fromJson = <T>(json: string | null | undefined) => {
+    // log.debug("Trying to parse JSON into workerMessage", json);
+    if (!!json) {
+        try {
+            const cmd: WorkerMessage<T> = JSON.parse(
+                json,
+                JSONcamelCaseReviver
+            );
+            if (cmd && cmd.type) {
+                return new WorkerMessage<T>(cmd.type, cmd.data);
+            }
+        } catch (err) {
+            console.error("Couldn't parse workerMessage", err);
+        }
+    }
+    return emptyMessage();
 };
 
-// tslint:disable-next-line:max-classes-per-file
-export class WorkerError {
-    public constructor(public errorMsg: string, public originalCommand: WorkerCommandType, public error?: Error | object | string | null) { }
-}
+export const fromRawMessage = <T>({ type, data }: RawMessage<T>) => {
+    try {
+        return new WorkerMessage(type, data, true);
+    } catch (err) {
+        console.error("Couldn't create workerMessage from raw data", err);
+    }
+
+    return emptyMessage();
+};
+
+export const checkMsgType = <T>(
+    type: WorkerCommandType | WorkerMessageType
+) => (msg: WorkerMessage<T>) => {
+    const result = propEq("type", type, msg);
+    return result;
+};
 
 export interface FibonacciTask {
     value: number;

@@ -1,12 +1,12 @@
-import "rxjs/add/observable/empty";
-import "rxjs/add/observable/fromPromise";
-import "rxjs/add/operator/debounceTime";
-import "rxjs/add/operator/map";
-
-import { Subject } from "rxjs/Subject";
-
+import { Subject } from "rxjs";
+import { debounceTime, map } from "rxjs/operators";
 import { FibonacciTask, WorkerMessage } from "../com-models";
-import { createMessageHandler, error, log, sendToMainThread } from "../worker-utils";
+import {
+    createMessageHandler,
+    error,
+    log,
+    sendToMainThread
+} from "../worker-utils";
 
 /** Returns a memoized fibonnaci function */
 const cachedFibonacci = (() => {
@@ -17,16 +17,13 @@ const cachedFibonacci = (() => {
         if (!num) {
             return 0;
         }
-
+        if (num <= 1) {
+            return 1;
+        }
         if (!disableCache && cache[num]) {
             return cache[num];
         }
 
-        if (num <= 1) {
-            return 1;
-        }
-
-        // tslint:disable-next-line:no-magic-numbers
         cache[num] = fib(num - 1, disableCache) + fib(num - 2, disableCache);
         return cache[num];
     };
@@ -36,12 +33,17 @@ const cachedFibonacci = (() => {
 
 export const fibonacciHandler = (messagePool: Subject<WorkerMessage<any>>) =>
     createMessageHandler<FibonacciTask>("CalcFibonacci", messagePool)
-        // tslint:disable-next-line:no-magic-numbers
-        .debounceTime(200)
-        .map(msg => msg.data)
-        .subscribe(({ value, disableCache }) => {
-            const result = cachedFibonacci(value, disableCache);
-            sendToMainThread(new WorkerMessage<number>("FibonnaciResult", result));
-        },
-        error,
-        () => log("fibonnaciHandler => done"));
+        .pipe(
+            debounceTime(200),
+            map(msg => msg.data)
+        )
+        .subscribe({
+            next: ({ value, disableCache }) => {
+                const result = cachedFibonacci(value, disableCache);
+                sendToMainThread(
+                    new WorkerMessage<number>("FibonnaciResult", result)
+                );
+            },
+            error,
+            complete: () => log("fibonnaciHandler => done")
+        });
