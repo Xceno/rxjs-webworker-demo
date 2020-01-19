@@ -7,7 +7,7 @@ The source code is [free for everyone to use](https://github.com/Xceno/rxjs-webw
 
 The heart of this demo is the [src/worker](https://github.com/Xceno/rxjs-webworker-demo/tree/master/src/worker) folder and [this example component](https://github.com/Xceno/rxjs-webworker-demo/blob/master/src/components/FibonacciExample/FibonacciExample.tsx#L19).
 
-It spins up to workers that run in parallel, one with, the other without a memoized fibonacci function and renders the result.
+It spins up two workers that run in parallel, one with, the other without a memoized fibonacci function and renders the result.
 
 ## The Why
 
