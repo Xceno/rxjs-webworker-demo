@@ -6,7 +6,7 @@ import {
     throwError,
 } from "rxjs";
 import { filter, share, takeUntil, tap } from "rxjs/operators";
-// tslint:disable-next-line:no-implicit-dependencies
+// eslint-disable-next-line import/no-webpack-loader-syntax
 import MyWorker from "worker-loader!../worker/worker";
 import {
     checkMsgType,
@@ -110,4 +110,30 @@ export class WorkerService {
     };
 }
 
+/* Worker debug tools available in the global (window) scope in development via the browser console. */
+if (Object.is(process.env.NODE_ENV, "development")) {
+    (globalThis as any).worker_dbg = ((wm, api) => {
+        let sub: Subscription | null = null;
+        const startListener = () => {
+            sub = api.notification$.subscribe(
+                (x) => {
+                    console.debug("[Worker REPL] msg", x);
+                    console.table(x.data);
+                },
+                (x) => {
+                    console.debug("[Worker REPL] error", x);
+                },
+                () => {
+                    console.debug("[Worker REPL] Good bye!");
+                }
+            );
+        };
+
+        return {
+            wm,
+            stw: api.sendToWorker,
+            startListener,
+            stopListener: () => sub && sub.unsubscribe(),
+        };
+    })(WorkerMessage, WorkerApi);
 }
