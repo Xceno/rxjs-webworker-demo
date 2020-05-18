@@ -5,10 +5,14 @@ import { JSONcamelCaseReviver } from "../tools";
 export type WorkerCommandType = "CalcFibonacci" | "empty";
 
 /** A message that a client receives from a worker. */
-export type WorkerMessageType = "FibonnaciResult" | "Ready" | "empty" | "Error";
+export type WorkerResultMessageType =
+    | "FibonnaciResult"
+    | "Ready"
+    | "empty"
+    | "Error";
 
 export interface RawMessage<TPayload> {
-    type: WorkerCommandType | WorkerMessageType;
+    type: WorkerCommandType | WorkerResultMessageType;
     data: TPayload;
 }
 
@@ -21,14 +25,14 @@ export class WorkerError {
 }
 
 // tslint:disable-next-line:max-classes-per-file
-export class WorkerMessage<T> {
+export class WorkerMessage<T = any> {
     /**
      * Set isRawMessage to true, to prevent the message from being stringified.
      * This is useful for data like Files, which will be properly serialized for you by the native worker pipeline
      * and don't need any further serialization.
      */
     public constructor(
-        public readonly type: WorkerCommandType | WorkerMessageType,
+        public readonly type: WorkerCommandType | WorkerResultMessageType,
         public readonly data: T,
         public readonly isRawMessage: boolean = false
     ) {}
@@ -38,7 +42,7 @@ export class WorkerMessage<T> {
             return {
                 type: this.type,
                 data: this.data,
-                isRawMessage: this.isRawMessage
+                isRawMessage: this.isRawMessage,
             };
         }
 
@@ -46,7 +50,7 @@ export class WorkerMessage<T> {
     };
 }
 
-const emptyMessage = () => new WorkerMessage<any[]>("empty", []);
+export const emptyMessage = () => new WorkerMessage<any[]>("empty", []);
 
 export const errorMessage = (
     errorMsg: string,
@@ -87,7 +91,7 @@ export const fromRawMessage = <T>({ type, data }: RawMessage<T>) => {
 };
 
 export const checkMsgType = <T>(
-    type: WorkerCommandType | WorkerMessageType
+    type: WorkerCommandType | WorkerResultMessageType
 ) => (msg: WorkerMessage<T>) => {
     const result = propEq("type", type, msg);
     return result;

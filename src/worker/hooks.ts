@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { map } from "rxjs/operators";
-import { WorkerMessage, WorkerMessageType } from "./com-models";
+import { WorkerMessage, WorkerResultMessageType } from "./com-models";
 import { WorkerService } from "./worker-service";
 
 interface WorkerResult<T> {
@@ -14,7 +14,7 @@ type useWorkerResult<TResult, TMessage> = [
 ];
 
 export const useWorker = <TResult = any, TMessage = any>(
-    type: WorkerMessageType
+    type: WorkerResultMessageType
 ): useWorkerResult<TResult, TMessage> => {
     const [state, setState] = useState({ result: null, isRunning: false });
     const service = useRef<WorkerService>();
@@ -23,8 +23,8 @@ export const useWorker = <TResult = any, TMessage = any>(
         service.current = new WorkerService();
         const sub = service.current
             .createMessageHandler<any>(type)
-            .pipe(map(msg => msg.data))
-            .subscribe(result => setState({ result, isRunning: false }));
+            .pipe(map((msg) => msg.data))
+            .subscribe((result) => setState({ result, isRunning: false }));
 
         return () => sub.unsubscribe();
     }, [type]);
