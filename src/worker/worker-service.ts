@@ -106,7 +106,11 @@ export class WorkerService {
      */
     public dispose = () => {
         this.dispose$.next(true);
+        if (this.worker && this.worker.terminate) {
+            this.worker.terminate();
+        }
         this.worker = null;
+        console.debug("[WorkerService] worker disposed.");
     };
 }
 
